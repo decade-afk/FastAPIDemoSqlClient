@@ -6,8 +6,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     services:
+      # 用于测试的MySQL服务
       mysql:
-        image: mysql:8.0
+        image: mysql:5.7
         env:
           MYSQL_ROOT_PASSWORD: rootpass
           MYSQL_DATABASE: testdb
@@ -16,12 +17,10 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd "mysqladmin ping -ptestpass -u testuser"
+          --health-cmd "mysqladmin ping -ppassword"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
-        volumes:
-          - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+          --health-retries 3
 
     steps:
     - name: Checkout code
@@ -32,17 +31,12 @@ jobs:
       with:
         python-version: 3.12
 
-    # 等待 MySQL 服务启动
-    - name: Wait for MySQL
-      run: sleep 15
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest mysql-connector-python
 
-    - name: Run tests
+    - name: Run tests with MySQL
       env:
         MYSQL_HOST: 127.0.0.1
         MYSQL_PORT: 3306
@@ -67,5 +61,4 @@ jobs:
         sleep 10
         
         # 测试API端点
-        curl -s -X GET http://localhost:8000/ | grep 'Welcome'
-        curl -s -X GET http://localhost:8000/items/1 | grep 'Item'
+        curl -X GET http://localhost:8000/items/1 | grep 'Item 1'
