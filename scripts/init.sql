@@ -3,15 +3,4 @@ CREATE TABLE IF NOT EXISTS items (
     name VARCHAR(50) NOT NULL
 );
 
--- 只有表为空时才插入初始数据
-INSERT INTO items (name)
-SELECT 'Item 1' FROM DUAL
-WHERE NOT EXISTS (SELECT * FROM items);
-
-INSERT INTO items (name)
-SELECT 'Item 2' FROM DUAL
-WHERE NOT EXISTS (SELECT * FROM items);
-
-INSERT INTO items (name)
-SELECT 'Item 3' FROM DUAL
-WHERE NOT EXISTS (SELECT * FROM items);
+INSERT INTO items (name) VALUES ('Item 1'), ('Item 2'), ('Item 3');
