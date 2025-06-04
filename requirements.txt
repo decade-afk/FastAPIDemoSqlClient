@@ -4,3 +4,8 @@ mysql-connector-python
 python-dotenv
 httpx
 pytest
+anyio
+pytest-asyncio
+pytest-tornasync
+pytest-trio
+pytest-twisted
