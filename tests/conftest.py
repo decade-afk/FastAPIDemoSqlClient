@@ -3,112 +3,109 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from app.main import app
-from app.database import Base, get_db
-from app.dependencies import get_current_user
-from app.crud import create_user, get_user_by_email
-from app.schemas import UserCreate
+from app.database import Base
+from app.dependencies import get_db as original_get_db, get_current_active_user, get_admin_user
+from app.crud import create_user
+from app.schemas import UserCreate, ItemCreate
 
-# 覆盖依赖项 - 创建测试数据库会话
-@pytest.fixture(scope="session")
-def test_engine():
-    return create_engine(
-        "mysql+pymysql://testuser:testpass@127.0.0.1:3307/fastapi_test",
-        pool_size=5,
-        max_overflow=10,
-        pool_recycle=300
-    )
+# 测试数据库连接
+TEST_DATABASE_URL = "mysql+pymysql://testuser:testpass@localhost:3307/fastapi_test"
 
-# 在每个测试函数前创建一个新的事务，测试后回滚
+# 创建测试引擎和会话
+engine = create_engine(
+    TEST_DATABASE_URL,
+    pool_pre_ping=True,
+)
+
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 创建测试数据库表
+@pytest.fixture(scope="session", autouse=True)
+def create_test_database():
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
+# 覆盖依赖项 - 为每个测试创建一个独立的事务
 @pytest.fixture(scope="function")
-def test_session(test_engine):
-    connection = test_engine.connect()
+def db_session():
+    connection = engine.connect()
     transaction = connection.begin()
-    SessionLocal = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection
-    )
-    session = SessionLocal()
-    
-    # 创建所有表
-    Base.metadata.create_all(bind=connection)
+    session = TestingSessionLocal(bind=connection)
     
     yield session
     
-    # 清理
     session.close()
     transaction.rollback()
     connection.close()
 
-# 覆盖依赖注入
+# 覆盖应用依赖
 @pytest.fixture(scope="function")
-def override_db(test_session):
-    def _override_get_db():
+def test_app(db_session):
+    # 覆盖数据库依赖
+    def override_get_db():
         try:
-            yield test_session
+            yield db_session
         finally:
-            test_session.rollback()
+            pass  # 由外部的db_session fixture处理关闭
     
-    app.dependency_overrides[get_db] = _override_get_db
-    return test_session
+    app.dependency_overrides[original_get_db] = override_get_db
+    
+    # 覆盖认证依赖
+    def override_get_current_active_user():
+        # 创建测试用户
+        test_user_data = UserCreate(
+            name="Test User", 
+            email="test@example.com", 
+            password="password"
+        )
+        test_user = create_user(db_session, test_user_data)
+        return test_user
+    
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+    
+    # 覆盖管理员依赖
+    def override_get_admin_user():
+        # 创建管理员用户
+        admin_data = UserCreate(
+            name="Admin User", 
+            email="admin@example.com", 
+            password="adminpassword"
+        )
+        admin_user = create_user(db_session, admin_data)
+        admin_user.is_admin = True
+        db_session.commit()
+        return admin_user
+    
+    app.dependency_overrides[get_admin_user] = override_get_admin_user
+    
+    return app
 
-# 创建测试客户端
+# 测试客户端
 @pytest.fixture(scope="function")
-def client(override_db):
-    with TestClient(app) as test_client:
+def client(test_app):
+    with TestClient(test_app) as test_client:
         yield test_client
-
-# 创建认证用户
-@pytest.fixture(scope="function")
-def authenticated_client(client):
-    # 创建测试用户
-    user_data = {
-        "name": "Test User",
-        "email": "test@example.com",
-        "password": "securepassword"
-    }
-    response = client.post("/users/", json=user_data)
-    assert response.status_code == 200
-    user = response.json()
-    
-    # 登录获取token
-    login_data = {
-        "username": "test@example.com",
-        "password": "securepassword"
-    }
-    response = client.post("/token", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-    
-    # 设置认证头
-    headers = {"Authorization": f"Bearer {token}"}
-    
-    # 模拟认证用户
-    def _get_current_user_override():
-        return user
-    
-    app.dependency_overrides[get_current_user] = _get_current_user_override
-    
-    # 返回带认证头的客户端
-    client.headers.update(headers)
-    return client
 
 # 创建测试数据
 @pytest.fixture(scope="function")
-def create_test_data(test_session):
-    from app.crud import create_item
-    from app.schemas import ItemCreate
-    
-    # 创建用户
-    user_data = UserCreate(name="Data Owner", email="owner@example.com", password="testpass")
-    user = create_user(test_session, user_data)
+def create_test_data(db_session):
+    # 创建普通用户
+    user_data = UserCreate(
+        name="Regular User", 
+        email="regular@example.com", 
+        password="regularpass"
+    )
+    regular_user = create_user(db_session, user_data)
     
     # 创建项目
     items = []
-    for i in range(1, 6):
+    for i in range(5):
         item_data = ItemCreate(
-            title=f"Item {i}",
-            description=f"Description for item {i}",
-            owner_id=user.id
+            title=f"Test Item {i}",
+            description=f"Description for test item {i}"
         )
-        items.append(create_item(test_session, item_data))
+        item = create_item(db_session, item_data, regular_user.id)
+        items.append(item)
     
-    return {"user": user, "items": items}
+    return {"regular_user": regular_user, "items": items}

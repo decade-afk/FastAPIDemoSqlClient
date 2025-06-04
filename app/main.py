@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from . import crud, models, schemas
-from .database import SessionLocal, engine
-from .dependencies import get_current_user
+from .database import engine, SessionLocal
+from .dependencies import get_db, get_current_active_user, get_admin_user
 from datetime import datetime
 import os
 
@@ -10,17 +10,21 @@ import os
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="FastAPI with MySQL (Python 3.12)",
-    description="Dockerized FastAPI application with MySQL database",
-    version="1.0.0"
+    title="FastAPI with MySQL Testing",
+    description="API with full Pytest test suite",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # 启动时间
 startup_time = datetime.now()
 
-api_router = APIRouter()
+@app.on_event("startup")
+async def startup_event():
+    print("Application started successfully")
 
-@api_router.get("/health", tags=["System"])
+@app.get("/health", tags=["System"])
 def health_check():
     return {
         "status": "healthy",
@@ -28,83 +32,44 @@ def health_check():
         "startup_time": startup_time.isoformat()
     }
 
-@api_router.post("/users/", response_model=schemas.User, tags=["Users"])
-def create_user(user: schemas.UserCreate, db: Session = Depends(crud.get_db)):
-    return crud.create_user(db, user)
+@app.post("/users/", response_model=schemas.User, tags=["Users"])
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = crud.get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    return crud.create_user(db=db, user=user)
 
-@api_router.get("/users/", response_model=list[schemas.User], tags=["Users"])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(crud.get_db)):
-    return crud.get_users(db, skip=skip, limit=limit)
+@app.get("/users/", response_model=list[schemas.User], tags=["Users"])
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    users = crud.get_users(db, skip=skip, limit=limit)
+    return users
 
-@api_router.get("/users/me", response_model=schemas.User, tags=["Users"])
-def read_current_user(current_user: schemas.User = Depends(get_current_user)):
+@app.get("/users/me", response_model=schemas.User, tags=["Users"])
+def read_current_user(current_user: schemas.User = Depends(get_current_active_user)):
     return current_user
 
-@api_router.post("/token", tags=["Authentication"])
-def login_for_access_token(form_data: schemas.TokenRequest):
-    return crud.authenticate_user(form_data.username, form_data.password)
+@app.post("/token", response_model=schemas.Token, tags=["Authentication"])
+def login_for_access_token(form_data: schemas.TokenRequest, db: Session = Depends(get_db)):
+    user = crud.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 创建伪令牌 - 在实际项目中应生成真实的JWT
+    access_token = user.email  # 使用邮箱作为令牌进行简化
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
-# 项目相关端点
-item_router = APIRouter()
-
-@item_router.post("/", response_model=schemas.Item, tags=["Items"])
-def create_item(
-    item: schemas.ItemCreate,
-    db: Session = Depends(crud.get_db),
-    current_user: schemas.User = Depends(get_current_user)
+@app.post("/admin/items/", response_model=schemas.Item, tags=["Admin"])
+def create_admin_item(
+    item: schemas.ItemCreate, 
+    db: Session = Depends(get_db),
+    admin: schemas.User = Depends(get_admin_user)
 ):
-    return crud.create_item(db, item, current_user.id)
-
-@item_router.get("/", response_model=list[schemas.Item], tags=["Items"])
-def read_items(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(crud.get_db),
-    current_user: schemas.User = Depends(get_current_user)
-):
-    return crud.get_items(db, current_user.id, skip=skip, limit=limit)
-
-@item_router.get("/{item_id}", response_model=schemas.Item, tags=["Items"])
-def read_item(
-    item_id: int,
-    db: Session = Depends(crud.get_db),
-    current_user: schemas.User = Depends(get_current_user)
-):
-    item = crud.get_item(db, item_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
-    if item.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this item")
-    return item
-
-@item_router.put("/{item_id}", response_model=schemas.Item, tags=["Items"])
-def update_item(
-    item_id: int,
-    item: schemas.ItemUpdate,
-    db: Session = Depends(crud.get_db),
-    current_user: schemas.User = Depends(get_current_user)
-):
-    db_item = crud.get_item(db, item_id)
-    if not db_item:
-        raise HTTPException(status_code=404, detail="Item not found")
-    if db_item.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this item")
-    return crud.update_item(db, item_id, item)
-
-@item_router.delete("/{item_id}", tags=["Items"])
-def delete_item(
-    item_id: int,
-    db: Session = Depends(crud.get_db),
-    current_user: schemas.User = Depends(get_current_user)
-):
-    db_item = crud.get_item(db, item_id)
-    if not db_item:
-        raise HTTPException(status_code=404, detail="Item not found")
-    if db_item.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this item")
-    crud.delete_item(db, item_id)
-    return {"status": "Item deleted"}
-
-# 包含所有路由
-app.include_router(api_router, prefix="")
-app.include_router(item_router, prefix="/items")
+    return crud.create_item(db, item, admin.id)

@@ -1,16 +1,43 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Annotated
+from datetime import datetime
+from typing import Optional
 
 class UserBase(BaseModel):
     email: EmailStr
 
 class UserCreate(UserBase):
-    name: Annotated[str, Field(..., min_length=3, max_length=50, example="John Doe")]
-    password: Annotated[str, Field(..., min_length=8, max_length=50, example="strongpassword")]
+    name: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=8, max_length=50)
 
 class User(UserBase):
     id: int
     name: str
+    is_active: bool
+    is_admin: bool
+    created_at: datetime
     
     class Config:
-        from_attributes = True  # 替代旧版 orm_mode=True
+        from_attributes = True
+
+class ItemBase(BaseModel):
+    title: str = Field(..., min_length=3, max_length=100)
+    description: Optional[str] = None
+
+class ItemCreate(ItemBase):
+    pass
+
+class Item(ItemBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class TokenRequest(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

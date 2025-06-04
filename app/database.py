@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 
+# 数据库连接字符串
 SQLALCHEMY_DATABASE_URL = "mysql+pymysql://user:password@db/fastapi"
 
 # 使用连接池优化性能
