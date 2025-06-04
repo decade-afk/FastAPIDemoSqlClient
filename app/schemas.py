@@ -1,30 +1,30 @@
-from pydantic import BaseModel
-from datetime import datetime
+# from pydantic import BaseModel
+# from datetime import datetime
 
-class UserBase(BaseModel):
-    username: str
-    email: str
+# class UserBase(BaseModel):
+#     username: str
+#     email: str
 
-class UserCreate(UserBase):
-    pass
+# class UserCreate(UserBase):
+#     pass
 
-class User(UserBase):
-    id: int
-    created_at: datetime
+# class User(UserBase):
+#     id: int
+#     created_at: datetime
 
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True
 
-class ProductBase(BaseModel):
-    name: str
-    price: float
-    description: str | None = None
+# class ProductBase(BaseModel):
+#     name: str
+#     price: float
+#     description: str | None = None
 
-class ProductCreate(ProductBase):
-    pass
+# class ProductCreate(ProductBase):
+#     pass
 
-class Product(ProductBase):
-    id: int
+# class Product(ProductBase):
+#     id: int
 
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True
