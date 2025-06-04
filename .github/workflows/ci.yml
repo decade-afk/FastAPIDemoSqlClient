@@ -27,7 +27,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          --tmpfs /var/lib/mysql  # 无持久化，每次都重新初始化
+          --tmpfs /var/lib/mysql
 
     steps:
       - name: Checkout code
