@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 
+# 为entrypoint.sh添加可执行权限
+RUN chmod +x /app/scripts/entrypoint.sh
+
 # 环境变量
 ENV MYSQL_ROOT_PASSWORD=rootpass
 ENV MYSQL_USER=testuser
