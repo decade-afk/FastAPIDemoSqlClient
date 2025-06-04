@@ -1,39 +1,65 @@
-name: test
+name: Build and Test
 
-on:
-  push:
-    branches:
-    - main
-  pull_request:
-    branches:
-    - main
+on: [push, pull_request]
 
 jobs:
-  build:
-    runs-on: ubuntu-18.04
-
-    strategy:
-      matrix:
-        node-version: ['10.x']
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      # 用于测试的MySQL服务
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppassword"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Shutdown Ubuntu MySQL (SUDO)
-      run: sudo service mysql stop
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        node-version: ${{ matrix.node-version }}
-    - name: Set up MySQL 5.7
-      uses: mirromutth/mysql-action@master
-      with:
-        mysql version: 5.7
-        mysql database: test
-        mysql root password: ${{ secrets.DatabasePassword }}
-    - name: npm install, build, and test
+        python-version: 3.12
+
+    - name: Install dependencies
       run: |
-        npm install
-        npm run lint
-        npm test -- --password=${{ secrets.DatabasePassword }}
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest httpx
+
+    - name: Run tests with MySQL
       env:
-        CI: true
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_PORT: 3306
+        MYSQL_USER: testuser
+        MYSQL_PASSWORD: testpass
+        MYSQL_DATABASE: testdb
+      run: |
+        pytest -v tests/
+
+    - name: Build Docker image
+      run: docker build -t fastapi-mysql-app .
+
+    - name: Test Docker container
+      run: |
+        docker run -d \
+          --name fastapi-test \
+          -p 8000:8000 \
+          -e MYSQL_HOST=host.docker.internal \
+          fastapi-mysql-app
+        
+        # 等待服务启动
+        sleep 10
+        
+        # 测试API端点
+        curl -X GET http://localhost:8000/items/1 | grep 'Item 1'
