@@ -31,7 +31,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app, Base, SessionLocal
 
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://test:testpassword@127.0.0.1:3306/testdb"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:root@127.0.0.1:3306/testdb"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

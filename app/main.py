@@ -43,7 +43,7 @@ from sqlalchemy.orm import sessionmaker
 
 app = FastAPI()
 
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://test:testpassword@db/testdb"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:root@db/testdb"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
