@@ -1,8 +1,8 @@
 FROM python:3.12
 
-# 安装MySQL服务器
+# 安装MySQL客户端
 RUN apt-get update && apt-get install -y \
-    default-mysql-server \
+    default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录

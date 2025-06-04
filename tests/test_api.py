@@ -7,8 +7,7 @@ sys.path.insert(0, str(root_path))
 
 import os
 import mysql.connector
-import pytest
-from httpx import AsyncClient
+from fastapi.testclient import TestClient
 from app.main import app
 
 # 测试环境变量
@@ -17,34 +16,36 @@ DB_CONFIG = {
     "user": os.getenv("MYSQL_USER", "testuser"),
     "password": os.getenv("MYSQL_PASSWORD", "testpass"),
     "database": os.getenv("MYSQL_DATABASE", "testdb"),
-    "port": os.getenv("MYSQL_PORT", 3306)
+    "port": int(os.getenv("MYSQL_PORT", "3306"))  # 确保端口是整数
 }
 
-@pytest.mark.asyncio
-async def test_read_item():
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        # 先插入测试数据
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO items (name) VALUES ('Test Item')")
-        item_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
+# 创建测试客户端
+client = TestClient(app)
+
+def test_read_item():
+    # 先插入测试数据
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    
+    # 创建测试表（如果不存在）
+    cursor.execute("CREATE TABLE IF NOT EXISTS items (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50) NOT NULL)")
+    
+    # 插入测试数据
+    cursor.execute("INSERT INTO items (name) VALUES ('Test Item')")
+    item_id = cursor.lastrowid
+    conn.commit()
+    
+    try:
         # 测试API
-        response = await client.get(f"/items/{item_id}")
+        response = client.get(f"/items/{item_id}")
         assert response.status_code == 200
         assert response.json()["name"] == "Test Item"
-        
+    finally:
         # 清理测试数据
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
         cursor.execute(f"DELETE FROM items WHERE id = {item_id}")
         conn.commit()
         conn.close()
 
-@pytest.mark.asyncio
-async def test_item_not_found():
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.get("/items/9999")
-        assert response.status_code == 404
+def test_item_not_found():
+    response = client.get("/items/9999")
+    assert response.status_code == 404
