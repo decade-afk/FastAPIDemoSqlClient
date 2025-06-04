@@ -21,7 +21,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from main import app, Base, SessionLocal
+from app.main import app, Base, SessionLocal
 
 SQLALCHEMY_DATABASE_URL = "mysql+pymysql://test:testpassword@localhost:3306/testdb"
 
