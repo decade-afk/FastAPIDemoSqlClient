@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# 将项目根目录添加到 sys.path
+root_dir = Path(__file__).parent.parent
+sys.path.append(str(root_dir))
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
