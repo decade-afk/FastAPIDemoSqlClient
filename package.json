@@ -1,0 +1,21 @@
+{
+  "name": "github_actions_testcontainers",
+  "version": "1.0.0",
+  "description": "",
+  "main": "test/knex-demo.test.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "knex": "^2.5.1",
+    "mysql2": "^3.6.0",
+    "dotenv": "^16.0.1"
+  },
+  "devDependencies": {
+    "testcontainers": "^9.9.1"
+  },
+  "type": "module"
+}
