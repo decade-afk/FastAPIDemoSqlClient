@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  # 应用服务（通过桥接网络访问宿主机 MySQL）
+  app:
+    build: .  # 构建 Dockerfile
+    network_mode: bridge  # 使用桥接网络模式
+    environment:
+      # 使用 host.docker.internal 访问宿主机 MySQL
+      DATABASE_URL: mysql+pymysql://root:root@host.docker.internal:3306/test_db
+    ports:
+      - "8000:8000"  # 应用端口映射

@@ -1,0 +1,3 @@
+fastapi[all]
+boto3
+httpx
