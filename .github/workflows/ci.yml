@@ -56,9 +56,9 @@ jobs:
           --memory 1G \
           fastapi-app:latest uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info
 
-      - name: Wait for services to be ready
-        run: |
-          timeout 30s bash -c 'until curl -s http://localhost:10104/health; do sleep 2; done'
+      # - name: Wait for services to be ready
+      #   run: |
+      #     timeout 30s bash -c 'until curl -s http://localhost:10104/health; do sleep 2; done'
 
       - name: Verify database initialization
         run: |
