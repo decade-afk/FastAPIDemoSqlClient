@@ -1,12 +1,58 @@
 version: '3.8'
 
 services:
-  # 应用服务（通过桥接网络访问宿主机 MySQL）
-  app:
-    build: .  # 构建 Dockerfile
-    network_mode: bridge  # 使用桥接网络模式
+  db:
+    image: mysql:8.0
+    container_name: mysql-db
+    command: --default-authentication-plugin=mysql_native_password
     environment:
-      # 使用 host.docker.internal 访问宿主机 MySQL
-      DATABASE_URL: mysql+pymysql://root:root@host.docker.internal:3306/test_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_DATABASE: fastapi
+      TZ: UTC
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "8000:8000"  # 应用端口映射
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi-app
+    environment:
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/code
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql-data:
+    name: fastapi-mysql-data
