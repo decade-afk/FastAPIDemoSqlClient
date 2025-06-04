@@ -21,4 +21,4 @@ async def read_item(item_id: int):
             # 确保这里正确返回404
             raise HTTPException(status_code=404, detail="Item not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
