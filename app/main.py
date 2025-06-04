@@ -17,6 +17,8 @@ async def read_item(item_id: int):
         conn.close()
         if item:
             return {"id": item[0], "name": item[1]}
-        raise HTTPException(status_code=404, detail="Item not found")
+        else:
+            # 确保这里正确返回404
+            raise HTTPException(status_code=404, detail="Item not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
