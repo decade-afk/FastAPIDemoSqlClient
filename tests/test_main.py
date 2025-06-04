@@ -18,6 +18,14 @@
 #     assert response.status_code == 200
 #     assert response.json()["name"] == "Laptop"
 
+# tests/test_main.py（文件顶部添加）
+import sys
+from pathlib import Path
+
+# 获取项目根目录（假设tests/与app/同级）
+project_root = str(Path(__file__).resolve().parent.parent)
+sys.path.insert(0, project_root)
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

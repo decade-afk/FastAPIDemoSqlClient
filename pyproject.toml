@@ -1,0 +1,6 @@
+# pyproject.toml
+[
+tool.pytest.ini_options
+]
+testpaths = ["tests"]
+pythonpath = ["."]  # 添加项目根目录到搜索路径
